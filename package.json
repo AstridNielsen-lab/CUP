@@ -1,0 +1,27 @@
+{
+  "name": "cup",
+  "version": "1.0.0",
+  "description": "Compressive Ultrafast Photography (CUP) visualization and simulation",
+  "main": "dist/main.bundle.js",
+  "scripts": {
+    "start": "webpack serve --mode development",
+    "build": "webpack --mode production",
+    "dev": "webpack --mode development --watch",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch"
+  },
+  "keywords": ["cup", "simulation", "3d", "optics", "visualization"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.178.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.178.1",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.100.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2"
+  }
+}
