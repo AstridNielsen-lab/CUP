@@ -1,4 +1,6 @@
 const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
   mode: 'development',
@@ -20,11 +22,25 @@ module.exports = {
   },
   output: {
     filename: '[name].bundle.js',
-    path: path.resolve(__dirname, 'dist'),
+    path: path.resolve(__dirname, 'public'),
+    clean: true,
   },
+  plugins: [
+    new HtmlWebpackPlugin({
+      template: './index.html',
+      filename: 'index.html',
+      inject: false // Don't auto inject scripts since they're already in the HTML
+    }),
+    new CopyPlugin({
+      patterns: [
+        { from: "styles.css", to: "styles.css" },
+        { from: "simulacoes.html", to: "simulacoes.html" }
+      ],
+    }),
+  ],
   devServer: {
     static: {
-      directory: path.join(__dirname, './'),
+      directory: path.join(__dirname, './public'),
     },
     compress: true,
     port: 8080,
