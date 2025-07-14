@@ -1,4 +1,11 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Compressive Ultrafast Photography (CUP) Visualization</title><style>body {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Compressive Ultrafast Photography (CUP) Visualization</title>
+    <style>
+        body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
@@ -94,4 +101,80 @@
         @keyframes spin {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
             100% { transform: translate(-50%, -50%) rotate(360deg); }
-        }</style></head><body><div class="container"><h1>Compressive Ultrafast Photography (CUP) Visualization</h1><p>Interactive simulations demonstrating CUP technology principles and applications.</p><div class="simulation-grid"><div class="simulation-box"><h3 class="simulation-title">Digital Micromirror Device (DMD)</h3><canvas id="dmdSimulation" class="simulation-canvas"></canvas></div><div class="simulation-box"><h3 class="simulation-title">Optical Encoding</h3><canvas id="opticalEncoding" class="simulation-canvas"></canvas></div><div class="simulation-box"><h3 class="simulation-title">Temporal Reconstruction</h3><canvas id="reconstruction" class="simulation-canvas"></canvas></div><div class="simulation-box"><h3 class="simulation-title">Physical Phenomena</h3><canvas id="physicalPhenomena" class="simulation-canvas"></canvas></div></div><div class="explanation"><h2>About CUP Technology</h2><p>Compressive Ultrafast Photography (CUP) is a revolutionary imaging technique that can capture dynamic events at extremely high frame rates, up to trillions of frames per second. It combines concepts from compressed sensing and computational imaging to break traditional limitations of cameras.</p><h3>How It Works</h3><ul><li><strong>Spatial Encoding:</strong> Using a Digital Micromirror Device (DMD) to spatially encode the scene</li><li><strong>Temporal Shearing:</strong> Streaking the encoded image in time through a streak camera</li><li><strong>Computational Reconstruction:</strong> Recovering the original video frames using compressed sensing algorithms</li></ul></div></div><script src="/main.bundle.js"></script><script src="/simulations.bundle.js"></script></body></html>
+        }
+        /* Debug panel styling */
+        #debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            display: none;
+        }
+        #debug-output {
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Compressive Ultrafast Photography (CUP) Visualization</h1>
+        <p>Interactive simulations demonstrating CUP technology principles and applications.</p>
+        
+        <div class="simulation-grid">
+            <!-- Canvas elements with IDs matching the ones in simulations.ts -->
+            <div class="simulation-box">
+                <h3 class="simulation-title">Digital Micromirror Device (DMD)</h3>
+                <canvas id="dmdSimulation" class="simulation-canvas"></canvas>
+                <!-- Loading indicator will be added dynamically -->
+                <div class="loader" id="dmd-loader"></div>
+            </div>
+            
+            <div class="simulation-box">
+                <h3 class="simulation-title">Optical Encoding</h3>
+                <canvas id="opticalEncoding" class="simulation-canvas"></canvas>
+                <div class="loader" id="optical-loader"></div>
+            </div>
+            
+            <div class="simulation-box">
+                <h3 class="simulation-title">Temporal Reconstruction</h3>
+                <canvas id="reconstruction" class="simulation-canvas"></canvas>
+                <div class="loader" id="reconstruction-loader"></div>
+            </div>
+            
+            <div class="simulation-box">
+                <h3 class="simulation-title">Physical Phenomena</h3>
+                <canvas id="physicalPhenomena" class="simulation-canvas"></canvas>
+                <div class="loader" id="physical-loader"></div>
+            </div>
+        </div>
+        
+        <!-- Debug output container -->
+        <div id="debug-info">
+            <h3>Debug Information</h3>
+            <pre id="debug-output">Initialization started...</pre>
+            <button onclick="document.getElementById('debug-output').innerHTML = ''; console.log('Debug cleared');">Clear Debug</button>
+            <button onclick="document.getElementById('debug-info').style.display = 'none';">Hide</button>
+            <button onclick="if(window.runDiagnostics) window.runDiagnostics();">Run Diagnostics</button>
+        </div>
+        
+        <div class="explanation">
+            <h2>About CUP Technology</h2>
+            <p>Compressive Ultrafast Photography (CUP) is a revolutionary imaging technique that can capture dynamic events at extremely high frame rates, up to trillions of frames per second. It combines concepts from compressed sensing and computational imaging to break traditional limitations of cameras.</p>
+            
+            <h3>How It Works</h3>
+            <ul>
+                <li><strong>Spatial Encoding:</strong> Using a Digital Micromirror Device (DMD) to spatially encode the scene</li>
+                <li><strong>Temporal Shearing:</strong> Streaking the encoded image in time through a streak camera</li>
+                <li><strong>Computational Reconstruction:</strong> Recovering the original video frames using compressed sensing algorithms</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Script loading with correct paths -->
+    <script src="main.bundle.js"></script>
+    <script src="simulations.bundle.js"></script>
+</body>
+</html>

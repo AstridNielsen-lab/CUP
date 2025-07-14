@@ -24,8 +24,9 @@ export const shaders = {
                 float glow = 0.5 * exp(-radial * 5.0) * intensity;
                 float pulse = sin(time * 5.0) * 0.1 + 0.9;
                 
+                // Make glow more pronounced and visible
                 vec3 finalColor = color * glow * pulse;
-                gl_FragColor = vec4(finalColor, glow);
+                gl_FragColor = vec4(finalColor, glow * 2.0);
             }
         `
     },

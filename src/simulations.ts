@@ -3,6 +3,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { SimulationSetup, Setups, Phenomena, WaveReference, FluidReference } from './types';
 import { shaders } from './shaders';
 
+// Global type declaration for runDiagnostics
+declare global {
+    interface Window {
+        runDiagnostics: () => void;
+    }
+}
+
 // Add these interfaces after the existing imports
 interface Mirror extends THREE.Mesh {
     userData: {
@@ -72,6 +79,11 @@ const phenomena: Phenomena = {
   waveRef: undefined,
   fluidRef: undefined
 };
+
+// Global variables for physical simulation
+let lightSpeed = 1.0;
+let fluidSpeed = 0.5;
+let fluidDirection = 1;
 
 // Initialize each scene
 Object.keys(setups).forEach(key => {
@@ -189,10 +201,23 @@ function setupDMDScene() {
 }
 
 function setupOpticalScene() {
-    const { scene, camera, renderer } = setups.optical;
-    if (!scene || !camera || !renderer) return;
+    try {
+        const { scene, camera, renderer } = setups.optical;
+        if (!scene || !camera || !renderer) {
+            console.error("Optical scene setup failed: missing scene, camera, or renderer");
+            return;
+        }
 
-    const canvas = renderer.domElement;
+        const canvas = renderer.domElement;
+        debugLog("Setting up optical scene with canvas dimensions: " + canvas.clientWidth + "x" + canvas.clientHeight);
+        
+        // Ensure canvas has proper dimensions
+        if (canvas.clientWidth === 0 || canvas.clientHeight === 0) {
+            canvas.style.width = '100%';
+            canvas.style.height = '300px';
+            renderer.setSize(canvas.clientWidth || 500, canvas.clientHeight || 300);
+            debugLog("Canvas resized to: " + (canvas.clientWidth || 500) + "x" + (canvas.clientHeight || 300));
+        }
     
     // Create loading indicator
     const loader = document.createElement('div');
@@ -256,44 +281,88 @@ function setupOpticalScene() {
     
     setups.optical.laserUniforms = laserUniforms;
     
-    const laserMaterial = new THREE.ShaderMaterial({
-        uniforms: laserUniforms,
-        vertexShader: shaders.laser.vertex,
-        fragmentShader: shaders.laser.fragment,
-        transparent: true,
-        depthWrite: false,
-        side: THREE.DoubleSide
-    });
+    // Create laser material with proper error handling
+    let laserMaterial: THREE.Material;
     
-    // Create laser beam geometry
-    const laserBeam = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.03, 3, 16, 1, true),
-        laserMaterial
-    );
-    laserBeam.position.set(0, 0, 1.5);
-    laserBeam.rotation.x = Math.PI/2;
-    scene.add(laserBeam);
+    try {
+        if (!shaders.laser || !shaders.laser.vertex || !shaders.laser.fragment) {
+            console.error("Laser shader code missing");
+            debugLog("ERROR: Laser shader missing or incomplete");
+            // Fallback to basic material
+            laserMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff0000, 
+                transparent: true,
+                opacity: 0.5,
+                side: THREE.DoubleSide
+            });
+            debugLog("Using fallback basic material for laser");
+        } else {
+            laserMaterial = new THREE.ShaderMaterial({
+                uniforms: laserUniforms,
+                vertexShader: shaders.laser.vertex,
+                fragmentShader: shaders.laser.fragment,
+                transparent: true,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending
+            });
+            debugLog("Using shader material for laser");
+        }
+        
+        // Create laser beam geometry
+        const laserBeam = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.03, 0.03, 3, 16, 1, true),
+            laserMaterial
+        );
+        
+        // Set initial position and orientation
+        laserBeam.position.set(0, 0, 1.5);
+        laserBeam.rotation.x = Math.PI/2;
+        scene.add(laserBeam);
+        debugLog("Laser beam added to scene");
+    } catch (error) {
+        console.error("Error creating laser beam:", error);
+        debugLog("ERROR: Failed to create laser beam: " + (error as Error).message);
+    }
     
     // Create controls
     createOpticalControls(canvas, mirrors, gridSize);
     
     // Add animation
     setups.optical.animate = (time: number) => {
-        if (laserUniforms) {
-            laserUniforms.time.value = time / 1000;
+        try {
+            if (setups.optical.laserUniforms) {
+                setups.optical.laserUniforms.time.value = time / 1000;
+            }
+            
+            // Animate subtle mirror movements - add safety check
+            if (mirrors && mirrors.length > 0) {
+                mirrors.forEach(mirror => {
+                    if (!mirror || !mirror.position) return;
+                    
+                    const vibration = Math.sin(time / 1000 * 2 + mirror.position.x * 10) * 0.01;
+                    mirror.rotation.x += vibration;
+                    
+                    // Make sure userData exists
+                    if (mirror.userData) {
+                        mirror.rotation.x = THREE.MathUtils.clamp(
+                            mirror.rotation.x,
+                            mirror.userData.active ? Math.PI/4 - 0.1 : -Math.PI/4 - 0.1,
+                            mirror.userData.active ? Math.PI/4 + 0.1 : -Math.PI/4 + 0.1
+                        );
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Error in optical animation:", error);
+            debugLog("Error in optical animation: " + (error as Error).message);
         }
-        
-        // Animate subtle mirror movements
-        mirrors.forEach(mirror => {
-            const vibration = Math.sin(time / 1000 * 2 + mirror.position.x * 10) * 0.01;
-            mirror.rotation.x += vibration;
-            mirror.rotation.x = THREE.MathUtils.clamp(
-                mirror.rotation.x,
-                mirror.userData.active ? Math.PI/4 - 0.1 : -Math.PI/4 - 0.1,
-                mirror.userData.active ? Math.PI/4 + 0.1 : -Math.PI/4 + 0.1
-            );
-        });
     };
+    
+    // Add debug info about optical setup
+    debugLog("Optical scene setup complete");
+    debugLog(`Mirrors created: ${mirrors ? mirrors.length : 0}`);
+    debugLog(`Using shader material: ${!(!shaders.laser || !shaders.laser.vertex || !shaders.laser.fragment)}`);
     
     // Remove loader after setup
     setTimeout(() => {
@@ -303,8 +372,21 @@ function setupOpticalScene() {
 
 // Helper function to create optical controls
 function createOpticalControls(canvas: HTMLCanvasElement, mirrors: Mirror[], gridSize: number) {
-    const controlPanel = document.createElement('div');
-    controlPanel.className = 'simulation-controls';
+    try {
+        if (!canvas) {
+            console.error("Cannot create optical controls: canvas is null");
+            debugLog("ERROR: Cannot create optical controls (null canvas)");
+            return;
+        }
+        
+        if (!mirrors || mirrors.length === 0) {
+            console.error("Cannot create optical controls: mirrors array is empty");
+            debugLog("ERROR: Cannot create optical controls (empty mirrors)");
+            return;
+        }
+        
+        const controlPanel = document.createElement('div');
+        controlPanel.className = 'simulation-controls';
     
     // Create controls HTML
     controlPanel.innerHTML = `
@@ -327,70 +409,111 @@ function createOpticalControls(canvas: HTMLCanvasElement, mirrors: Mirror[], gri
         </div>
     `;
     
-    canvas.parentElement?.appendChild(controlPanel);
+    // Ensure parent element exists
+    if (!canvas.parentElement) {
+        console.error("Cannot append controls: canvas parent is null");
+        debugLog("ERROR: Cannot append controls (null canvas parent)");
+        return;
+    }
+    
+    canvas.parentElement.appendChild(controlPanel);
     
     // Add event listeners
     const controls: OpticalControls = {};
     
-    setTimeout(() => {
-        controls.colorSelect = document.getElementById('laserColor') as HTMLSelectElement;
-        controls.intensitySlider = document.getElementById('laserIntensity') as HTMLInputElement;
-        controls.patternButtons = {
-            random: document.getElementById('randomPattern') as HTMLButtonElement,
-            checker: document.getElementById('checkerPattern') as HTMLButtonElement,
-            line: document.getElementById('linePattern') as HTMLButtonElement
-        };
-        
-        if (controls.colorSelect) {
-            controls.colorSelect.addEventListener('change', (e: Event) => {
-                const target = e.target as HTMLSelectElement;
-                const colorMap: { [key: string]: number } = {
-                    'red': 0xff0000,
-                    'green': 0x00ff00,
-                    'blue': 0x0000ff
-                };
-                if (setups.optical.laserUniforms) {
-                    setups.optical.laserUniforms.color.value = new THREE.Color(colorMap[target.value]);
-                }
-            });
-        }
-        
-        if (controls.intensitySlider) {
-            controls.intensitySlider.addEventListener('input', (e: Event) => {
-                const target = e.target as HTMLInputElement;
-                if (setups.optical.laserUniforms) {
-                    setups.optical.laserUniforms.intensity.value = parseFloat(target.value);
-                }
-            });
-        }
-        
-        // Pattern controls
-        if (controls.patternButtons) {
-            controls.patternButtons.random.addEventListener('click', () => {
-                mirrors.forEach(mirror => {
-                    mirror.userData.active = Math.random() > 0.5;
-                    mirror.rotation.x = mirror.userData.active ? Math.PI/4 : -Math.PI/4;
-                });
-            });
+    // Function to safely attach event listeners
+    const setupControlListeners = () => {
+        try {
+            controls.colorSelect = document.getElementById('laserColor') as HTMLSelectElement;
+            controls.intensitySlider = document.getElementById('laserIntensity') as HTMLInputElement;
+            controls.patternButtons = {
+                random: document.getElementById('randomPattern') as HTMLButtonElement,
+                checker: document.getElementById('checkerPattern') as HTMLButtonElement,
+                line: document.getElementById('linePattern') as HTMLButtonElement
+            };
             
-            controls.patternButtons.checker.addEventListener('click', () => {
-                mirrors.forEach((mirror, index) => {
-                    const i = Math.floor(index / gridSize);
-                    const j = index % gridSize;
-                    mirror.userData.active = (i + j) % 2 === 0;
-                    mirror.rotation.x = mirror.userData.active ? Math.PI/4 : -Math.PI/4;
-                });
-            });
-            
-            controls.patternButtons.line.addEventListener('click', () => {
-                mirrors.forEach((mirror, index) => {
-                    const j = index % gridSize;
-                    mirror.userData.active = j % 2 === 0;
-                    mirror.rotation.x = mirror.userData.active ? Math.PI/4 : -Math.PI/4;
-                });
-            });
+            // Check if elements were found before adding listeners
+            if (!controls.colorSelect || !controls.intensitySlider || 
+                !controls.patternButtons.random || !controls.patternButtons.checker || !controls.patternButtons.line) {
+                console.warn('Some optical simulation controls not found, retrying in 100ms');
+                setTimeout(setupControlListeners, 100);
+                return;
+            }
+        
+	        if (controls.colorSelect) {
+	            controls.colorSelect.addEventListener('change', (e: Event) => {
+	                const target = e.target as HTMLSelectElement;
+	                const colorMap: { [key: string]: number } = {
+	                    'red': 0xff0000,
+	                    'green': 0x00ff00,
+	                    'blue': 0x0000ff
+	                };
+	                if (setups.optical.laserUniforms) {
+	                    setups.optical.laserUniforms.color.value = new THREE.Color(colorMap[target.value]);
+	                }
+	            });
+	        }
+	        
+	        if (controls.intensitySlider) {
+	            controls.intensitySlider.addEventListener('input', (e: Event) => {
+	                const target = e.target as HTMLInputElement;
+	                if (setups.optical.laserUniforms) {
+	                    setups.optical.laserUniforms.intensity.value = parseFloat(target.value);
+	                }
+	            });
+	        }
+	        
+	        // Pattern controls
+	        if (controls.patternButtons) {
+	            controls.patternButtons.random.addEventListener('click', () => {
+	                mirrors.forEach(mirror => {
+	                    if (!mirror) return;
+	                    mirror.userData.active = Math.random() > 0.5;
+	                    mirror.rotation.x = mirror.userData.active ? Math.PI/4 : -Math.PI/4;
+	                });
+	                debugLog("Random pattern applied to mirrors");
+	            });
+	            
+	            controls.patternButtons.checker.addEventListener('click', () => {
+	                mirrors.forEach((mirror, index) => {
+	                    if (!mirror) return;
+	                    const i = Math.floor(index / gridSize);
+	                    const j = index % gridSize;
+	                    mirror.userData.active = (i + j) % 2 === 0;
+	                    mirror.rotation.x = mirror.userData.active ? Math.PI/4 : -Math.PI/4;
+	                });
+	                debugLog("Checker pattern applied to mirrors");
+	            });
+	            
+	            controls.patternButtons.line.addEventListener('click', () => {
+	                mirrors.forEach((mirror, index) => {
+	                    if (!mirror) return;
+	                    const j = index % gridSize;
+	                    mirror.userData.active = j % 2 === 0;
+	                    mirror.rotation.x = mirror.userData.active ? Math.PI/4 : -Math.PI/4;
+	                });
+	                debugLog("Line pattern applied to mirrors");
+	            });
+	        } 
+        } catch (error) {
+            console.error('Error setting up optical controls:', error);
+            setTimeout(setupControlListeners, 100);
         }
-    }, 100);
+    };
+    
+    // Start setting up controls - use a more reliable approach
+    if (document.readyState === 'complete') {
+        setupControlListeners();
+    } else {
+        window.addEventListener('load', setupControlListeners);
+        // Fallback timeout
+        setTimeout(setupControlListeners, 500);
+    }
+    
+} catch (error) {
+        console.error("Error creating optical controls:", error);
+        debugLog("Error creating optical controls: " + (error as Error).message);
+    }
 }
 
 function setupReconstructionScene() {
@@ -804,9 +927,7 @@ function setupPhysicalPhenomenaScene() {
 
     // Add animation
     let time = 0;
-    let lightSpeed = 1.0;
-    let fluidSpeed = 0.5;
-    let fluidDirection = 1;
+    // Use the global lightSpeed, fluidSpeed, and fluidDirection variables
 
     setups.physical.animate = (timestamp: number) => {
         time = timestamp / 1000;
@@ -887,3 +1008,65 @@ window.addEventListener('resize', function () {
 
 // Start animation loop
 requestAnimationFrame(animateScenes);
+
+// Debug helper function
+function debugLog(message: string) {
+    console.log(message);
+    const debugOutput = document.getElementById('debug-output');
+    if (debugOutput && debugOutput.textContent !== null) {
+        debugOutput.textContent += message + '\n';
+        if (debugOutput.textContent && debugOutput.textContent.split('\n').length > 10) {
+            const lines = debugOutput.textContent.split('\n');
+            debugOutput.textContent = lines.slice(lines.length - 10).join('\n');
+        }
+    }
+}
+
+// Show debug panel if there are errors
+window.addEventListener('error', function(event) {
+    const debugInfo = document.getElementById('debug-info');
+    if (debugInfo) {
+        debugInfo.style.display = 'block';
+        debugLog(`Error: ${event.message} at ${event.filename}:${event.lineno}`);
+    }
+});
+
+// Add diagnostic function
+window.runDiagnostics = function(): void {
+    try {
+        debugLog("Running diagnostics...");
+        debugLog("Checking optical scene setup:");
+        
+        // Check optical scene components
+        const { scene, camera, renderer, laserUniforms } = setups.optical;
+        debugLog(`- Scene: ${scene ? 'OK' : 'MISSING'}`);
+        debugLog(`- Camera: ${camera ? 'OK' : 'MISSING'}`);
+        debugLog(`- Renderer: ${renderer ? 'OK' : 'MISSING'}`);
+        debugLog(`- Laser uniforms: ${laserUniforms ? 'OK' : 'MISSING'}`);
+        
+        if (laserUniforms) {
+            debugLog(`  - Color: ${laserUniforms.color ? 'OK' : 'MISSING'}`);
+            debugLog(`  - Time: ${laserUniforms.time ? 'OK' : 'MISSING'}`);
+            debugLog(`  - Intensity: ${laserUniforms.intensity ? 'OK' : 'MISSING'}`);
+        }
+        
+        // Check control elements
+        debugLog("Checking optical controls:");
+        const laserColor = document.getElementById('laserColor');
+        const laserIntensity = document.getElementById('laserIntensity');
+        const randomPattern = document.getElementById('randomPattern');
+        debugLog(`- Color select: ${laserColor ? 'OK' : 'MISSING'}`);
+        debugLog(`- Intensity slider: ${laserIntensity ? 'OK' : 'MISSING'}`);
+        debugLog(`- Random pattern: ${randomPattern ? 'OK' : 'MISSING'}`);
+        
+        // Check shader availability
+        debugLog("Checking shader code:");
+        debugLog(`- Laser vertex: ${shaders.laser?.vertex ? 'OK' : 'MISSING'}`);
+        debugLog(`- Laser fragment: ${shaders.laser?.fragment ? 'OK' : 'MISSING'}`);
+        
+        debugLog("Diagnostics complete.");
+    } catch (error) {
+        debugLog(`Diagnostic error: ${(error as Error).message}`);
+    }
+};
+

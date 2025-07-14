@@ -139,6 +139,15 @@
             </div>
         </div>
         
+        <!-- Debug info -->
+        <div id="debug-info" style="margin-top: 20px; padding: 10px; background-color: #f0f0f0; border-radius: 5px; display: none;">
+            <h3>Debug Information</h3>
+            <pre id="debug-output"></pre>
+            <button id="toggle-debug" onclick="document.getElementById('debug-output').innerHTML = ''; console.log('Debug cleared');">Clear Debug</button>
+            <button onclick="document.getElementById('debug-info').style.display = 'none';">Hide</button>
+            <button onclick="document.getElementById('debug-output').innerHTML += 'Running diagnostics...\n'; runDiagnostics();">Run Diagnostics</button>
+        </div>
+        
         <div class="explanation">
             <h2>About CUP Technology</h2>
             <p>Compressive Ultrafast Photography (CUP) is a revolutionary imaging technique that can capture dynamic events at extremely high frame rates, up to trillions of frames per second. It combines concepts from compressed sensing and computational imaging to break traditional limitations of cameras.</p>
